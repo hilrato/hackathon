@@ -1,0 +1,61 @@
+.difficulty-picker {
+  border: 0;
+  padding: 0;
+  margin: 0 0 18px;
+}
+
+.difficulty-picker legend {
+  color: #668381;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.difficulty-picker > div {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid #d1e9e5;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 8px 24px #174b4510;
+}
+
+.difficulty-picker button {
+  min-width: 84px;
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 14px;
+  color: #66817e;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .18s;
+}
+
+.difficulty-picker button:hover {
+  color: #159d91;
+  background: #eff9f7;
+}
+
+.difficulty-picker button.active {
+  color: #fff;
+  background: #18aa9d;
+  box-shadow: 0 5px 12px #18aa9d35;
+}
+
+.difficulty-picker button:focus-visible {
+  outline: 3px solid #ff8e78;
+  outline-offset: 2px;
+}
+
+@media (max-width: 800px) {
+  .difficulty-picker > div { margin: auto; }
+}
+
+@media (max-width: 440px) {
+  .difficulty-picker button {
+    min-width: 78px;
+    padding: 9px 10px;
+  }
+}
