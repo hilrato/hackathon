@@ -1,8 +1,11 @@
-import { useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { QuizVisual } from './QuizVisual'
+import { ResultInsights } from './ResultInsights'
 import './App.css'
 import './difficulty.css'
 import './water.css'
 import './short-answer.css'
+import './gameplay.css'
 
 type Question = { eyebrow: string; prompt: string; detail: string; answers: string[]; correct: number; explanation: string; kind?: 'choice' | 'short'; acceptedAnswers?: string[]; sampleAnswer?: string }
 type Difficulty = 'easy' | 'medium' | 'hard'
@@ -12,29 +15,31 @@ const questionsByDifficulty: Record<Difficulty, Question[]> = {
     { eyebrow: 'Easy · Short answer', prompt: 'Ari finishes two 300 mL bottles during the school day. How much water did Ari drink?', detail: 'Enter a short answer with the number and unit.', answers: [], correct: -1, kind: 'short', acceptedAnswers: ['600', '600 ml', '0.6 l'], sampleAnswer: '600 mL', explanation: '2 × 300 mL = 600 mL.' },
     { eyebrow: 'Easy · Activity breaks', prompt: 'During a 60-minute practice, Nia drinks 150 mL at each of 3 water breaks. How much does she drink during practice?', detail: 'Multiply the amount per break by the number of breaks.', answers: ['300 mL', '450 mL', '600 mL', '750 mL'], correct: 1, explanation: '3 × 150 mL = 450 mL. Drinking at planned breaks is more reliable than waiting until the end of activity.' },
     { eyebrow: 'Easy · Short answer', prompt: 'Sam starts a walk with 800 mL and drinks 275 mL. How much water is left?', detail: 'Enter a short answer with the number and unit.', answers: [], correct: -1, kind: 'short', acceptedAnswers: ['525', '525 ml', '0.525 l'], sampleAnswer: '525 mL', explanation: '800 − 275 = 525 mL.' },
-    { eyebrow: 'Easy · Food counts too', prompt: 'Lena gets 650 mL of fluid from drinks and 150 mL from water-rich foods. What is her combined total?', detail: 'Add the fluid from drinks and food.', answers: ['700 mL', '750 mL', '800 mL', '850 mL'], correct: 2, explanation: '650 + 150 = 800 mL. Many fruits and vegetables contain water and can contribute to total fluid intake.' },
-    { eyebrow: 'Easy · Smart swap', prompt: 'Jay replaces two 330 mL sugary drinks with the same amount of plain water. How much water is that altogether?', detail: 'Multiply 330 mL by two.', answers: ['330 mL', '560 mL', '660 mL', '760 mL'], correct: 2, explanation: '2 × 330 mL = 660 mL. Choosing water instead of sugary drinks adds hydration without added sugar or calories.' },
-    { eyebrow: 'Easy · Team supply', prompt: 'Six teammates each bring a 500 mL bottle. How many liters of water do they bring altogether?', detail: 'Multiply first, then remember that 1,000 mL equals 1 L.', answers: ['2 L', '2.5 L', '3 L', '3.5 L'], correct: 2, explanation: '6 × 500 mL = 3,000 mL, or 3 L. Group planning helps make sure water is available during activity.' },
+    { eyebrow: 'Easy · Capybara catering', prompt: 'Lena caters a pool party for the Capybara Council. She serves 650 mL in drinks and 150 mL from water-rich fruit. What is the combined total?', detail: 'The capybaras demand accurate addition.', answers: ['700 mL', '750 mL', '800 mL', '850 mL'], correct: 2, explanation: '650 + 150 = 800 mL. Many fruits and vegetables contain water and can contribute to total fluid intake.' },
+    { eyebrow: 'Easy · The soda uprising', prompt: 'Jay’s soda machine becomes self-aware, so he replaces two 330 mL sodas with water before it can unionize. How much water is that?', detail: 'Multiply 330 mL by two. Ignore the machine’s demands.', answers: ['330 mL', '560 mL', '660 mL', '760 mL'], correct: 2, explanation: '2 × 330 mL = 660 mL. Choosing water instead of sugary drinks adds hydration without added sugar or calories.' },
+    { eyebrow: 'Easy · Lunar penguin league', prompt: 'Six penguins arrive for moon dodgeball, each carrying a 500 mL bottle in its tiny space backpack. How many liters do they have?', detail: 'Multiply, convert to liters, and do not question penguin aerospace.', answers: ['2 L', '2.5 L', '3 L', '3.5 L'], correct: 2, explanation: '6 × 500 mL = 3,000 mL, or 3 L. Group planning helps make sure water is available during activity.' },
   ],
   medium: [
     { eyebrow: 'Medium · Hydration schedule', prompt: 'During a 75-minute practice, Imani drinks 150 mL every 15 minutes. How much does she drink over the 5 scheduled breaks?', detail: 'Find the number of listed breaks, then multiply.', answers: ['600 mL', '700 mL', '750 mL', '900 mL'], correct: 2, explanation: '5 × 150 mL = 750 mL. Water before, during, and after activity can be part of a well-planned routine.' },
     { eyebrow: 'Medium · Short answer', prompt: 'A 1.2 L bottle is ⅜ full after a hike. How much water was consumed?', detail: 'Find what remains, subtract, and enter a short answer.', answers: [], correct: -1, kind: 'short', acceptedAnswers: ['750', '750 ml', '0.75 l'], sampleAnswer: '750 mL', explanation: '⅜ of 1,200 mL is 450 mL remaining, so 750 mL was consumed.' },
     { eyebrow: 'Medium · Heat adjustment', prompt: 'For a fictional plan, Mateo packs 1.6 L for a cool day and 25% more for a hot day. How much does he pack for the hot day?', detail: 'Find 25% of 1.6 L, then add it to the original amount.', answers: ['1.8 L', '2 L', '2.2 L', '2.4 L'], correct: 1, explanation: '25% of 1.6 L is 0.4 L, so the total is 2 L. Heat and physical activity can increase water needs, but personal needs vary.' },
-    { eyebrow: 'Medium · Short answer', prompt: 'Zoe drinks 350 mL before practice, 175 mL at each of 4 breaks, and 250 mL afterward. What is the total?', detail: 'Multiply the break amount, then add all three stages.', answers: [], correct: -1, kind: 'short', acceptedAnswers: ['1300', '1300 ml', '1.3 l'], sampleAnswer: '1.3 L', explanation: '350 + (4 × 175) + 250 = 1,300 mL, or 1.3 L.' },
-    { eyebrow: 'Medium · Total water sources', prompt: 'In a fictional daily total of 2.5 L, 20% comes from water-rich foods. How much comes from beverages?', detail: 'Beverages provide the remaining 80%.', answers: ['1.5 L', '1.8 L', '2 L', '2.3 L'], correct: 2, explanation: '80% of 2.5 L is 2 L. Total water can come from both beverages and foods such as fruits and vegetables.' },
-    { eyebrow: 'Medium · Cooler planning', prompt: 'A coach has 7.5 L of water. Ten players each fill a 650 mL bottle. How much remains in the cooler?', detail: 'Find the team’s total first, then subtract it from 7.5 L.', answers: ['0.5 L', '0.75 L', '1 L', '1.25 L'], correct: 2, explanation: '10 × 650 mL = 6.5 L, leaving 1 L. Planning enough water matters more when conditions are hot or activity lasts longer.' },
+    { eyebrow: 'Medium · Short answer', prompt: 'At an intergalactic pickleball final, Zoe drinks 350 mL before play, 175 mL at each of 4 breaks, and 250 mL after defeating a telepathic squid. Total?', detail: 'Multiply the break amount, then add all three stages.', answers: [], correct: -1, kind: 'short', acceptedAnswers: ['1300', '1300 ml', '1.3 l'], sampleAnswer: '1.3 L', explanation: '350 + (4 × 175) + 250 = 1,300 mL, or 1.3 L.' },
+    { eyebrow: 'Medium · Watermelon economics', prompt: 'A wizard declares a fictional 2.5 L daily total. Water-rich foods pay 20% of the hydration tax. How much must beverages pay?', detail: 'Beverages owe the remaining 80%. The wizard accepts liters only.', answers: ['1.5 L', '1.8 L', '2 L', '2.3 L'], correct: 2, explanation: '80% of 2.5 L is 2 L. Total water can come from both beverages and foods such as fruits and vegetables.' },
+    { eyebrow: 'Medium · Raccoon coach crisis', prompt: 'A coach—definitely not three raccoons in a tracksuit—has 7.5 L. Ten players fill 650 mL bottles. How much remains?', detail: 'Find the team total, subtract, and avoid eye contact with the coach.', answers: ['0.5 L', '0.75 L', '1 L', '1.25 L'], correct: 2, explanation: '10 × 650 mL = 6.5 L, leaving 1 L. Planning enough water matters more when conditions are hot or activity lasts longer.' },
   ],
   hard: [
     { eyebrow: 'Hard · Short answer', prompt: 'During a 100-minute session, Kai drinks 225 mL after every 20-minute interval. What is the total?', detail: 'Find the number of intervals, then enter a short answer.', answers: [], correct: -1, kind: 'short', acceptedAnswers: ['1125', '1125 ml', '1.125 l'], sampleAnswer: '1.125 L', explanation: '100 ÷ 20 = 5 intervals, and 5 × 225 mL = 1,125 mL.' },
     { eyebrow: 'Hard · Multi-step percent', prompt: 'A 2.4 L supply is shared. Priya uses 35%, then gives ¼ of her share to a teammate. How much does Priya keep?', detail: 'Find 35% of 2.4 L, then keep three quarters of that amount.', answers: ['560 mL', '630 mL', '720 mL', '840 mL'], correct: 1, explanation: '35% of 2,400 mL is 840 mL; ¾ of 840 mL is 630 mL. Shared supplies should still be planned around each person’s needs.' },
     { eyebrow: 'Hard · Team logistics', prompt: 'Twelve athletes each take three 180 mL water breaks. If the cooler started with 8 L, how much remains?', detail: 'Find the team total, convert units, and subtract.', answers: ['1.34 L', '1.52 L', '1.7 L', '2.48 L'], correct: 1, explanation: '12 × 3 × 180 mL = 6,480 mL. From 8,000 mL, that leaves 1,520 mL, or 1.52 L.' },
-    { eyebrow: 'Hard · Short answer', prompt: 'In a fictional 2.4 L total, 18% comes from water-rich foods. How much must come from beverages?', detail: 'Find the remaining 82% and enter a short answer.', answers: [], correct: -1, kind: 'short', acceptedAnswers: ['1968', '1968 ml', '1.968 l'], sampleAnswer: '1.968 L', explanation: '82% of 2.4 L is 1.968 L.' },
-    { eyebrow: 'Hard · Capacity check', prompt: 'A hiker carries 1.8 L and plans seven 220 mL breaks. How much water remains after the seventh break?', detail: 'Multiply the planned amount, then subtract it from 1,800 mL.', answers: ['220 mL', '240 mL', '260 mL', '280 mL'], correct: 2, explanation: '7 × 220 mL = 1,540 mL, leaving 260 mL. Checking a container’s capacity before activity helps avoid running short.' },
-    { eyebrow: 'Hard · Compare conditions', prompt: 'A fictional cool-day plan uses 160 mL at each of four breaks. A hot-day plan increases that total by 25%. What is the hot-day total?', detail: 'Find the cool-day total first, then increase it by one quarter.', answers: ['720 mL', '760 mL', '800 mL', '840 mL'], correct: 2, explanation: '4 × 160 mL = 640 mL; increasing it by 25% gives 800 mL. People often need more water in heat, though no single amount fits everyone.' },
+    { eyebrow: 'Hard · Short answer', prompt: 'A sentient moon-base watermelon sets a fictional 2.4 L total. It contributes 18% through fruit. How much must beverages provide?', detail: 'Find the remaining 82%. Do not anger the watermelon.', answers: [], correct: -1, kind: 'short', acceptedAnswers: ['1968', '1968 ml', '1.968 l'], sampleAnswer: '1.968 L', explanation: '82% of 2.4 L is 1.968 L.' },
+    { eyebrow: 'Hard · Sasquatch audit', prompt: 'A hiker carries 1.8 L while a mathematically gifted Sasquatch audits seven 220 mL breaks. How much remains after break seven?', detail: 'Multiply, subtract, and show the Sasquatch your receipt.', answers: ['220 mL', '240 mL', '260 mL', '280 mL'], correct: 2, explanation: '7 × 220 mL = 1,540 mL, leaving 260 mL. Checking a container’s capacity before activity helps avoid running short.' },
+    { eyebrow: 'Hard · Camel time paradox', prompt: 'A time-traveling camel uses 160 mL at each of four breaks, then lands in a hotter timeline requiring 25% more. What is the new total?', detail: 'Solve before the camel creates another hydration timeline.', answers: ['720 mL', '760 mL', '800 mL', '840 mL'], correct: 2, explanation: '4 × 160 mL = 640 mL; increasing it by 25% gives 800 mL. People often need more water in heat, though no single amount fits everyone.' },
   ],
 }
 
 const difficultyLabels: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
+const difficultyMultiplier: Record<Difficulty, number> = { easy: 1, medium: 1.5, hard: 2 }
+const getTimeLimit = (difficulty: Difficulty, questionIndex: number) => Math.max(12, ({ easy: 35, medium: 30, hard: 26 }[difficulty]) - questionIndex * 3)
 const normalizeAnswer = (answer: string) => answer.toLowerCase().replace(/,/g, '').replace(/millilit(?:er|re)s?/g, 'ml').replace(/lit(?:er|re)s?/g, 'l').replace(/\s+/g, '').trim()
 const answerIsCorrect = (question: Question, answer: number | string) => {
   if (question.kind !== 'short') return answer === question.correct
@@ -65,18 +70,63 @@ function App() {
   const [submittedShortAnswer, setSubmittedShortAnswer] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Array<number | string>>([])
   const [streak, setStreak] = useState(0)
+  const [points, setPoints] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(() => getTimeLimit('medium', 0))
+  const [timedOut, setTimedOut] = useState(false)
+  const [answerTimes, setAnswerTimes] = useState<number[]>([])
+  const [bestPoints, setBestPoints] = useState(0)
+  const [isNewBest, setIsNewBest] = useState(false)
+  const [shareStatus, setShareStatus] = useState('')
   const questions = questionsByDifficulty[difficulty]
   const score = answers.reduce<number>((total, answer, index) => total + (answerIsCorrect(questions[index], answer) ? 1 : 0), 0)
   const question = questions[current]
   const hasAnswered = selected !== null || submittedShortAnswer !== null
   const currentAnswer = question.kind === 'short' ? submittedShortAnswer : selected
   const isCorrect = currentAnswer !== null && answerIsCorrect(question, currentAnswer)
-  const begin = () => { setCurrent(0); setSelected(null); setShortResponse(''); setSubmittedShortAnswer(null); setAnswers([]); setStreak(0); setScreen('quiz') }
-  const choose = (index: number) => { if (selected !== null) return; setSelected(index); setAnswers((prev) => [...prev, index]); setStreak(index === question.correct ? streak + 1 : 0) }
-  const submitShortAnswer = (event: FormEvent) => { event.preventDefault(); const response = shortResponse.trim(); if (!response || submittedShortAnswer !== null) return; setSubmittedShortAnswer(response); setAnswers((prev) => [...prev, response]); setStreak(answerIsCorrect(question, response) ? streak + 1 : 0) }
-  const next = () => { if (current === questions.length - 1) { setScreen('results'); return }; setCurrent((value) => value + 1); setSelected(null); setShortResponse(''); setSubmittedShortAnswer(null) }
+  const correctAnswers = questions.map((item, index) => answers[index] !== undefined && answerIsCorrect(item, answers[index]))
+  const awardAnswer = useCallback((correct: boolean) => {
+    const multiplier = difficultyMultiplier[difficulty]
+    if (correct) setPoints((value) => value + Math.round((100 + timeLeft * 4 + streak * 25) * multiplier))
+    else setPoints((value) => Math.max(0, value - Math.round(50 * multiplier)))
+    setStreak(correct ? streak + 1 : 0)
+  }, [difficulty, streak, timeLeft])
+  const begin = useCallback(() => { const savedBest = Number(window.localStorage.getItem(`aquamath-best-${difficulty}`) ?? 0); setCurrent(0); setSelected(null); setShortResponse(''); setSubmittedShortAnswer(null); setAnswers([]); setAnswerTimes([]); setStreak(0); setPoints(0); setBestPoints(savedBest); setIsNewBest(false); setShareStatus(''); setTimedOut(false); setTimeLeft(getTimeLimit(difficulty, 0)); setScreen('quiz') }, [difficulty])
+  const choose = useCallback((index: number) => { if (selected !== null) return; const correct = index === question.correct; setSelected(index); setAnswers((prev) => [...prev, index]); setAnswerTimes((previous) => [...previous, getTimeLimit(difficulty, current) - timeLeft]); awardAnswer(correct) }, [awardAnswer, current, difficulty, question.correct, selected, timeLeft])
+  const submitShortAnswer = useCallback((event: FormEvent) => { event.preventDefault(); const response = shortResponse.trim(); if (!response || submittedShortAnswer !== null) return; const correct = answerIsCorrect(question, response); setSubmittedShortAnswer(response); setAnswers((prev) => [...prev, response]); setAnswerTimes((previous) => [...previous, getTimeLimit(difficulty, current) - timeLeft]); awardAnswer(correct) }, [awardAnswer, current, difficulty, question, shortResponse, submittedShortAnswer, timeLeft])
+  const next = useCallback(() => { if (current === questions.length - 1) { const savedBest = Number(window.localStorage.getItem(`aquamath-best-${difficulty}`) ?? 0); const newBest = points > savedBest; if (newBest) window.localStorage.setItem(`aquamath-best-${difficulty}`, String(points)); setBestPoints(Math.max(points, savedBest)); setIsNewBest(newBest); setScreen('results'); return }; const nextQuestion = current + 1; setCurrent(nextQuestion); setSelected(null); setShortResponse(''); setSubmittedShortAnswer(null); setTimedOut(false); setTimeLeft(getTimeLimit(difficulty, nextQuestion)) }, [current, difficulty, points, questions.length])
+  const shareResults = async () => { const text = `I scored ${points.toLocaleString()} points on AquaMath ${difficultyLabels[difficulty]} mode (${score}/${questions.length} correct). Think you can beat my current?`; try { if (navigator.share) await navigator.share({ title: 'AquaMath challenge', text }); else { await navigator.clipboard.writeText(text); setShareStatus('Challenge copied!') } } catch (error) { if (error instanceof Error && error.name !== 'AbortError') setShareStatus('Could not share this time') } }
 
-  return <main className={`app app--${screen}`}>
+  useEffect(() => {
+    if (screen !== 'quiz' || hasAnswered || timeLeft <= 0) return
+    const timer = window.setTimeout(() => {
+      if (timeLeft > 1) { setTimeLeft((value) => value - 1); return }
+      setTimeLeft(0)
+      setTimedOut(true)
+      setAnswers((previous) => [...previous, '__timeout__'])
+      setAnswerTimes((previous) => [...previous, getTimeLimit(difficulty, current)])
+      setStreak(0)
+      setPoints((value) => Math.max(0, value - Math.round(50 * difficultyMultiplier[difficulty])))
+      if (question.kind === 'short') setSubmittedShortAnswer('Time ran out')
+      else setSelected(-1)
+    }, 1000)
+    return () => window.clearTimeout(timer)
+  }, [current, difficulty, hasAnswered, question.kind, screen, timeLeft])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (screen !== 'quiz' || event.repeat) return
+      if (hasAnswered && event.key === 'Enter') { event.preventDefault(); next(); return }
+      if (hasAnswered || question.kind === 'short') return
+      const answerIndex = ['a', 'b', 'c', 'd'].indexOf(event.key.toLowerCase())
+      if (answerIndex >= 0 && answerIndex < question.answers.length) { event.preventDefault(); choose(answerIndex) }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [choose, hasAnswered, next, question.answers.length, question.kind, screen])
+
+  const timerWarning = screen === 'quiz' && !hasAnswered && timeLeft <= 5
+
+  return <main className={`app app--${screen} ${timerWarning ? 'timer-warning' : ''}`}>
     <nav className="nav" aria-label="Main navigation">
       <button className="brand" onClick={() => setScreen('home')} aria-label="AquaMath home"><span className="brand-mark"><Icon name="drop" size={19} /></span><span>Aqua<span>Math</span></span></button>
       <div className="nav-right">{screen === 'quiz' && <span className="question-count">{difficultyLabels[difficulty]} · Question {current + 1} of {questions.length}</span>}<div className="nav-pill"><Icon name="sparkle" size={14}/> Learn. Solve. Sip.</div></div>
@@ -84,26 +134,26 @@ function App() {
 
     {screen === 'home' && <section className="home">
       <div className="ambient ambient-one"/><div className="ambient ambient-two"/>
-      <div className="hero-copy"><div className="kicker"><span>NEW</span> Math that makes a splash</div><h1>Train your brain.<br/><em>Fuel your body.</em></h1><p className="hero-text">A quick-fire quiz where everyday math meets smarter hydration. Six questions. Zero pressure. Maximum refreshment.</p><fieldset className="difficulty-picker"><legend>Choose your difficulty</legend><div>{(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => <button key={level} type="button" className={difficulty === level ? 'active' : ''} onClick={() => setDifficulty(level)} aria-pressed={difficulty === level}>{difficultyLabels[level]}</button>)}</div></fieldset><button className="primary-button" onClick={begin}>Start {difficultyLabels[difficulty].toLowerCase()} quiz <Icon name="arrow" /></button><p className="tiny-note">No sign-up · About 3 minutes</p></div>
+      <div className="hero-copy"><div className="kicker"><span>NEW</span> Math that makes a splash</div><h1>Train your brain.<br/><em>Fuel your body.</em></h1><p className="hero-text">Six timed hydration-math challenges with interactive 3D clues, shrinking clocks, streaks, and points. Pick a difficulty, think fast, and brace for increasingly unhinged word problems.</p><fieldset className="difficulty-picker"><legend>Choose your difficulty</legend><div>{(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => <button key={level} type="button" className={difficulty === level ? 'active' : ''} onClick={() => setDifficulty(level)} aria-pressed={difficulty === level}>{difficultyLabels[level]}</button>)}</div></fieldset><button className="primary-button" onClick={begin}>Start {difficultyLabels[difficulty].toLowerCase()} quiz <Icon name="arrow" /></button><p className="tiny-note">No sign-up · About 3 minutes</p></div>
       <div className="hero-visual" aria-hidden="true"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="bottle"><div className="bottle-cap"/><div className="bottle-neck"/><div className="bottle-body"><div className="bottle-glint"/><div className="water"><span>750</span><small>mL</small></div><div className="measure m1">¾</div><div className="measure m2">½</div><div className="measure m3">¼</div></div></div><div className="float-card card-math"><span>+</span><b>3 × 250</b><small>= 750 mL</small></div><div className="float-card card-streak"><Icon name="bolt" size={18}/><b>Brain power</b><small>fully charged</small></div><span className="bubble b1"/><span className="bubble b2"/><span className="bubble b3"/></div>
       <div className="feature-strip"><div><span className="feature-icon coral"><Icon name="clock"/></span><p><b>3 minute challenge</b><small>Perfect for a quick brain break</small></p></div><div><span className="feature-icon mint"><Icon name="bolt"/></span><p><b>6 playful questions</b><small>Math, logic & hydration smarts</small></p></div><div><span className="feature-icon blue"><Icon name="drop"/></span><p><b>Instant explanations</b><small>Learn something with every answer</small></p></div></div>
     </section>}
 
     {screen === 'quiz' && <section className="quiz-shell">
-      <div className="quiz-topline"><button className="exit-button" onClick={() => setScreen('home')}>← Exit</button><div className="streak"><Icon name="bolt" size={16}/>{streak} streak</div></div>
+      <div className="quiz-topline"><button className="exit-button" onClick={() => setScreen('home')}>← Exit</button><span className="keyboard-hint">A–D to answer · Enter to continue</span><div className="quiz-hud"><span className="points-pill">{points.toLocaleString()} pts</span><span className="streak"><Icon name="bolt" size={16}/>{streak} streak</span><span className={`timer-pill ${timerWarning ? 'is-low' : ''}`} role="timer" aria-live={timerWarning ? 'assertive' : 'off'}><Icon name="clock" size={15}/>{timeLeft}s</span></div></div>
       <div className="progress-track"><span style={{ width: `${((current + (hasAnswered ? 1 : 0)) / questions.length) * 100}%` }} /></div>
       <article className="quiz-card">
-        <span className="quiz-eyebrow">{question.eyebrow}</span><h2>{question.prompt}</h2><p className="question-detail">{question.detail}</p>
+        <span className="quiz-eyebrow">{question.eyebrow}</span><h2>{question.prompt}</h2><p className="question-detail">{question.detail}</p><QuizVisual difficulty={difficulty} index={current} urgent={timerWarning}/>
         {question.kind === 'short' ? <form className="short-answer-form" onSubmit={submitShortAnswer}>
           <label htmlFor="short-answer">Your answer</label>
           <div className="short-answer-entry"><input id="short-answer" value={shortResponse} onChange={(event) => setShortResponse(event.target.value)} placeholder="Example: 750 mL" disabled={submittedShortAnswer !== null} autoComplete="off"/><button type="submit" disabled={!shortResponse.trim() || submittedShortAnswer !== null}>Check answer</button></div>
           {submittedShortAnswer !== null && <div className={`answer-comparison ${isCorrect ? 'is-correct' : 'is-wrong'}`} role="status"><div><small>Your answer</small><strong>{submittedShortAnswer}</strong></div><span aria-hidden="true">→</span><div><small>Correct answer</small><strong>{question.sampleAnswer}</strong></div><b>{isCorrect ? 'Correct' : 'Not quite'}</b></div>}
         </form> : <div className="answer-grid">{question.answers.map((answer, index) => { const state = selected === null ? '' : index === question.correct ? 'correct' : index === selected ? 'wrong' : 'muted'; return <button key={answer} className={`answer ${state}`} onClick={() => choose(index)} disabled={selected !== null}><span className="answer-letter">{String.fromCharCode(65 + index)}</span>{answer}{selected !== null && (index === question.correct || index === selected) && <span className="answer-status"><Icon name={index === question.correct ? 'check' : 'drop'} size={16}/></span>}</button> })}</div>}
-        {hasAnswered && <div className={`feedback ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`} role="status"><span className="feedback-icon"><Icon name={isCorrect ? 'check' : 'drop'} /></span><div><b>{isCorrect ? 'You nailed it!' : 'Good try—here’s the pour.'}</b><p>{question.explanation}</p></div><button onClick={next}>{current === questions.length - 1 ? 'See results' : 'Next question'} <Icon name="arrow" size={18}/></button></div>}
+        {hasAnswered && <div className={`feedback ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`} role="status"><span className="feedback-icon"><Icon name={isCorrect ? 'check' : 'drop'} /></span><div><b>{timedOut ? 'Time’s up—the bottle ran dry!' : isCorrect ? 'You nailed it!' : 'Good try—here’s the pour.'}</b><p>{question.explanation}</p></div><button onClick={next}>{current === questions.length - 1 ? 'See results' : 'Next question'} <Icon name="arrow" size={18}/></button></div>}
       </article>
     </section>}
 
-    {screen === 'results' && <section className="results"><div className="confetti c1"/><div className="confetti c2"/><div className="confetti c3"/><div className="confetti c4"/><div className="result-drop"><Icon name="drop" size={54}/><span>{score}/{questions.length}</span></div><span className="quiz-eyebrow">{difficultyLabels[difficulty]} quiz complete</span><h2>{score === questions.length ? 'Perfect pour!' : score >= 4 ? 'Making waves!' : 'A strong first splash!'}</h2><p>You solved <b>{score} of {questions.length}</b> challenges. Your math muscles and hydration know-how both got a workout.</p><div className="score-bar"><span style={{width: `${(score/questions.length)*100}%`}} /></div><div className="result-stats"><div><strong>{Math.round((score/questions.length)*100)}%</strong><small>accuracy</small></div><div><strong>{questions.length}</strong><small>questions</small></div><div><strong>+{score * 20}</strong><small>brain points</small></div></div><button className="primary-button" onClick={begin}><Icon name="refresh" size={19}/> Play {difficultyLabels[difficulty].toLowerCase()} again</button><button className="text-button" onClick={() => setScreen('home')}>Change difficulty</button><p className="health-note">These are math scenarios, not personal intake targets. Hydration needs vary with age, health, activity, and conditions; follow qualified medical guidance.</p></section>}
+    {screen === 'results' && <section className="results"><div className="confetti c1"/><div className="confetti c2"/><div className="confetti c3"/><div className="confetti c4"/><div className="result-drop"><Icon name="drop" size={54}/><span>{score}/{questions.length}</span></div><span className="quiz-eyebrow">{difficultyLabels[difficulty]} quiz complete</span><h2>{score === questions.length ? 'Perfect pour!' : score >= 4 ? 'Making waves!' : 'A strong first splash!'}</h2><p>You solved <b>{score} of {questions.length}</b> challenges. Your math muscles and hydration know-how both got a workout.</p><div className="score-bar"><span style={{width: `${(score/questions.length)*100}%`}} /></div><div className="result-stats"><div><strong>{Math.round((score/questions.length)*100)}%</strong><small>accuracy</small></div><div><strong>{questions.length}</strong><small>questions</small></div><div><strong>{points.toLocaleString()}</strong><small>{isNewBest ? 'new best' : `best ${bestPoints.toLocaleString()}`}</small></div></div><ResultInsights correctAnswers={correctAnswers} answerTimes={answerTimes} points={points} isNewBest={isNewBest} onShare={shareResults} shareStatus={shareStatus}/><button className="primary-button" onClick={begin}><Icon name="refresh" size={19}/> Play {difficultyLabels[difficulty].toLowerCase()} again</button><button className="text-button" onClick={() => setScreen('home')}>Change difficulty</button><p className="health-note">These are math scenarios, not personal intake targets. Hydration needs vary with age, health, activity, and conditions; follow qualified medical guidance.</p></section>}
   </main>
 }
 export default App
