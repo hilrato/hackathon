@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { QuizVisual } from './QuizVisual'
 import { ResultInsights } from './ResultInsights'
+import { Scratchpad } from './Scratchpad'
 import './App.css'
 import './difficulty.css'
 import './water.css'
 import './short-answer.css'
 import './gameplay.css'
+import './impact.css'
 
 type Question = { eyebrow: string; prompt: string; detail: string; answers: string[]; correct: number; explanation: string; kind?: 'choice' | 'short'; acceptedAnswers?: string[]; sampleAnswer?: string }
 type Difficulty = 'easy' | 'medium' | 'hard'
@@ -38,8 +40,15 @@ const questionsByDifficulty: Record<Difficulty, Question[]> = {
 }
 
 const difficultyLabels: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
+const questionCount = 6
+const difficultyOrder: Difficulty[] = ['easy', 'medium', 'hard']
 const difficultyMultiplier: Record<Difficulty, number> = { easy: 1, medium: 1.5, hard: 2 }
 const getTimeLimit = (difficulty: Difficulty, questionIndex: number) => Math.max(12, ({ easy: 35, medium: 30, hard: 26 }[difficulty]) - questionIndex * 3)
+const adaptDifficulty = (difficulty: Difficulty, correct: boolean, fast: boolean) => {
+  const currentIndex = difficultyOrder.indexOf(difficulty)
+  const nextIndex = correct && fast ? Math.min(currentIndex + 1, difficultyOrder.length - 1) : !correct ? Math.max(currentIndex - 1, 0) : currentIndex
+  return difficultyOrder[nextIndex]
+}
 const normalizeAnswer = (answer: string) => answer.toLowerCase().replace(/,/g, '').replace(/millilit(?:er|re)s?/g, 'ml').replace(/lit(?:er|re)s?/g, 'l').replace(/\s+/g, '').trim()
 const answerIsCorrect = (question: Question, answer: number | string) => {
   if (question.kind !== 'short') return answer === question.correct
@@ -64,11 +73,13 @@ function Icon({ name, size = 24 }: { name: IconName; size?: number }) {
 function App() {
   const [screen, setScreen] = useState<'home' | 'quiz' | 'results'>('home')
   const [difficulty, setDifficulty] = useState<Difficulty>('medium')
+  const [activeDifficulty, setActiveDifficulty] = useState<Difficulty>('medium')
   const [current, setCurrent] = useState(0)
   const [selected, setSelected] = useState<number | null>(null)
   const [shortResponse, setShortResponse] = useState('')
   const [submittedShortAnswer, setSubmittedShortAnswer] = useState<string | null>(null)
   const [answers, setAnswers] = useState<Array<number | string>>([])
+  const [playedQuestions, setPlayedQuestions] = useState<Question[]>([])
   const [streak, setStreak] = useState(0)
   const [points, setPoints] = useState(0)
   const [timeLeft, setTimeLeft] = useState(() => getTimeLimit('medium', 0))
@@ -77,24 +88,25 @@ function App() {
   const [bestPoints, setBestPoints] = useState(0)
   const [isNewBest, setIsNewBest] = useState(false)
   const [shareStatus, setShareStatus] = useState('')
-  const questions = questionsByDifficulty[difficulty]
-  const score = answers.reduce<number>((total, answer, index) => total + (answerIsCorrect(questions[index], answer) ? 1 : 0), 0)
-  const question = questions[current]
+  const score = answers.reduce<number>((total, answer, index) => total + (playedQuestions[index] && answerIsCorrect(playedQuestions[index], answer) ? 1 : 0), 0)
+  const question = questionsByDifficulty[activeDifficulty][current]
   const hasAnswered = selected !== null || submittedShortAnswer !== null
   const currentAnswer = question.kind === 'short' ? submittedShortAnswer : selected
   const isCorrect = currentAnswer !== null && answerIsCorrect(question, currentAnswer)
-  const correctAnswers = questions.map((item, index) => answers[index] !== undefined && answerIsCorrect(item, answers[index]))
+  const correctAnswers = Array.from({ length: questionCount }, (_, index) => playedQuestions[index] !== undefined && answers[index] !== undefined && answerIsCorrect(playedQuestions[index], answers[index]))
+  const answeredFast = timeLeft >= Math.ceil(getTimeLimit(activeDifficulty, current) * .45)
+  const nextAdaptiveDifficulty = hasAnswered ? adaptDifficulty(activeDifficulty, isCorrect, answeredFast) : activeDifficulty
   const awardAnswer = useCallback((correct: boolean) => {
-    const multiplier = difficultyMultiplier[difficulty]
+    const multiplier = difficultyMultiplier[activeDifficulty]
     if (correct) setPoints((value) => value + Math.round((100 + timeLeft * 4 + streak * 25) * multiplier))
     else setPoints((value) => Math.max(0, value - Math.round(50 * multiplier)))
     setStreak(correct ? streak + 1 : 0)
-  }, [difficulty, streak, timeLeft])
-  const begin = useCallback(() => { const savedBest = Number(window.localStorage.getItem(`aquamath-best-${difficulty}`) ?? 0); setCurrent(0); setSelected(null); setShortResponse(''); setSubmittedShortAnswer(null); setAnswers([]); setAnswerTimes([]); setStreak(0); setPoints(0); setBestPoints(savedBest); setIsNewBest(false); setShareStatus(''); setTimedOut(false); setTimeLeft(getTimeLimit(difficulty, 0)); setScreen('quiz') }, [difficulty])
-  const choose = useCallback((index: number) => { if (selected !== null) return; const correct = index === question.correct; setSelected(index); setAnswers((prev) => [...prev, index]); setAnswerTimes((previous) => [...previous, getTimeLimit(difficulty, current) - timeLeft]); awardAnswer(correct) }, [awardAnswer, current, difficulty, question.correct, selected, timeLeft])
-  const submitShortAnswer = useCallback((event: FormEvent) => { event.preventDefault(); const response = shortResponse.trim(); if (!response || submittedShortAnswer !== null) return; const correct = answerIsCorrect(question, response); setSubmittedShortAnswer(response); setAnswers((prev) => [...prev, response]); setAnswerTimes((previous) => [...previous, getTimeLimit(difficulty, current) - timeLeft]); awardAnswer(correct) }, [awardAnswer, current, difficulty, question, shortResponse, submittedShortAnswer, timeLeft])
-  const next = useCallback(() => { if (current === questions.length - 1) { const savedBest = Number(window.localStorage.getItem(`aquamath-best-${difficulty}`) ?? 0); const newBest = points > savedBest; if (newBest) window.localStorage.setItem(`aquamath-best-${difficulty}`, String(points)); setBestPoints(Math.max(points, savedBest)); setIsNewBest(newBest); setScreen('results'); return }; const nextQuestion = current + 1; setCurrent(nextQuestion); setSelected(null); setShortResponse(''); setSubmittedShortAnswer(null); setTimedOut(false); setTimeLeft(getTimeLimit(difficulty, nextQuestion)) }, [current, difficulty, points, questions.length])
-  const shareResults = async () => { const text = `I scored ${points.toLocaleString()} points on AquaMath ${difficultyLabels[difficulty]} mode (${score}/${questions.length} correct). Think you can beat my current?`; try { if (navigator.share) await navigator.share({ title: 'AquaMath challenge', text }); else { await navigator.clipboard.writeText(text); setShareStatus('Challenge copied!') } } catch (error) { if (error instanceof Error && error.name !== 'AbortError') setShareStatus('Could not share this time') } }
+  }, [activeDifficulty, streak, timeLeft])
+  const begin = useCallback(() => { const savedBest = Number(window.localStorage.getItem(`aquamath-best-${difficulty}`) ?? 0); setCurrent(0); setActiveDifficulty(difficulty); setSelected(null); setShortResponse(''); setSubmittedShortAnswer(null); setAnswers([]); setPlayedQuestions([]); setAnswerTimes([]); setStreak(0); setPoints(0); setBestPoints(savedBest); setIsNewBest(false); setShareStatus(''); setTimedOut(false); setTimeLeft(getTimeLimit(difficulty, 0)); setScreen('quiz') }, [difficulty])
+  const choose = useCallback((index: number) => { if (selected !== null) return; const correct = index === question.correct; setSelected(index); setAnswers((prev) => [...prev, index]); setPlayedQuestions((previous) => [...previous, question]); setAnswerTimes((previous) => [...previous, getTimeLimit(activeDifficulty, current) - timeLeft]); awardAnswer(correct) }, [activeDifficulty, awardAnswer, current, question, selected, timeLeft])
+  const submitShortAnswer = useCallback((event: FormEvent) => { event.preventDefault(); const response = shortResponse.trim(); if (!response || submittedShortAnswer !== null) return; const correct = answerIsCorrect(question, response); setSubmittedShortAnswer(response); setAnswers((prev) => [...prev, response]); setPlayedQuestions((previous) => [...previous, question]); setAnswerTimes((previous) => [...previous, getTimeLimit(activeDifficulty, current) - timeLeft]); awardAnswer(correct) }, [activeDifficulty, awardAnswer, current, question, shortResponse, submittedShortAnswer, timeLeft])
+  const next = useCallback(() => { if (current === questionCount - 1) { const savedBest = Number(window.localStorage.getItem(`aquamath-best-${difficulty}`) ?? 0); const newBest = points > savedBest; if (newBest) window.localStorage.setItem(`aquamath-best-${difficulty}`, String(points)); setBestPoints(Math.max(points, savedBest)); setIsNewBest(newBest); setScreen('results'); return }; const nextQuestion = current + 1; setCurrent(nextQuestion); setActiveDifficulty(nextAdaptiveDifficulty); setSelected(null); setShortResponse(''); setSubmittedShortAnswer(null); setTimedOut(false); setTimeLeft(getTimeLimit(nextAdaptiveDifficulty, nextQuestion)) }, [current, difficulty, nextAdaptiveDifficulty, points])
+  const shareResults = async () => { const text = `I scored ${points.toLocaleString()} points on an AquaMath adaptive run (${score}/${questionCount} correct). Think you can beat my current?`; try { if (navigator.share) await navigator.share({ title: 'AquaMath challenge', text }); else { await navigator.clipboard.writeText(text); setShareStatus('Challenge copied!') } } catch (error) { if (error instanceof Error && error.name !== 'AbortError') setShareStatus('Could not share this time') } }
 
   useEffect(() => {
     if (screen !== 'quiz' || hasAnswered || timeLeft <= 0) return
@@ -103,14 +115,15 @@ function App() {
       setTimeLeft(0)
       setTimedOut(true)
       setAnswers((previous) => [...previous, '__timeout__'])
-      setAnswerTimes((previous) => [...previous, getTimeLimit(difficulty, current)])
+      setPlayedQuestions((previous) => [...previous, question])
+      setAnswerTimes((previous) => [...previous, getTimeLimit(activeDifficulty, current)])
       setStreak(0)
-      setPoints((value) => Math.max(0, value - Math.round(50 * difficultyMultiplier[difficulty])))
+      setPoints((value) => Math.max(0, value - Math.round(50 * difficultyMultiplier[activeDifficulty])))
       if (question.kind === 'short') setSubmittedShortAnswer('Time ran out!')
       else setSelected(-1)
     }, 1000)
     return () => window.clearTimeout(timer)
-  }, [current, difficulty, hasAnswered, question.kind, screen, timeLeft])
+  }, [activeDifficulty, current, hasAnswered, question, screen, timeLeft])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -129,30 +142,32 @@ function App() {
   return <main className={`app app--${screen} ${timerWarning ? 'timer-warning' : ''}`}>
     <nav className="nav" aria-label="Main navigation">
       <button className="brand" onClick={() => setScreen('home')} aria-label="AquaMath home"><span className="brand-mark"><Icon name="drop" size={19} /></span><span>Aqua<span>Math</span></span></button>
+      <div className="nav-right">{screen === 'quiz' && <span className="question-count">Adaptive: {difficultyLabels[activeDifficulty]} · Question {current + 1} of {questionCount}</span>}<div className="nav-pill"><Icon name="sparkle" size={14}/> Learn. Solve. Sip.</div></div>
     </nav>
 
     {screen === 'home' && <section className="home">
       <div className="ambient ambient-one"/><div className="ambient ambient-two"/>
-      <div className="hero-copy"><div className="kicker"><span>NEW</span></div><h1>Train your brain.<br/><em>Fuel your body.</em></h1><p className="hero-text">Hydration-based math questions that will educate and reinforce peoples knowledge to better hydrate themselves and understand real world applications of math.</p><fieldset className="difficulty-picker"><legend>Choose your difficulty</legend><div>{(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => <button key={level} type="button" className={difficulty === level ? 'active' : ''} onClick={() => setDifficulty(level)} aria-pressed={difficulty === level}>{difficultyLabels[level]}</button>)}</div></fieldset><button className="primary-button" onClick={begin}>Start {difficultyLabels[difficulty].toLowerCase()} quiz <Icon name="arrow" /></button><p className="tiny-note">No sign-up · About 3 minutes</p></div>
+      <div className="hero-copy"><div className="kicker"><span>NEW</span> Math that makes a splash</div><h1>Train your brain.<br/><em>Fuel your body.</em></h1><p className="hero-text">Six timed hydration-math challenges with interactive 3D clues, shrinking clocks, streaks, and points. The quiz adapts as you play—think fast and brace for increasingly unhinged word problems.</p><fieldset className="difficulty-picker"><legend>Choose your starting difficulty</legend><div>{(['easy', 'medium', 'hard'] as Difficulty[]).map((level) => <button key={level} type="button" className={difficulty === level ? 'active' : ''} onClick={() => setDifficulty(level)} aria-pressed={difficulty === level}>{difficultyLabels[level]}</button>)}</div></fieldset><button className="primary-button" onClick={begin}>Start adaptive quiz <Icon name="arrow" /></button><p className="tiny-note">No sign-up · About 3 minutes</p></div>
       <div className="hero-visual" aria-hidden="true"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="bottle"><div className="bottle-cap"/><div className="bottle-neck"/><div className="bottle-body"><div className="bottle-glint"/><div className="water"><span>750</span><small>mL</small></div><div className="measure m1">¾</div><div className="measure m2">½</div><div className="measure m3">¼</div></div></div><div className="float-card card-math"><span>+</span><b>3 × 250</b><small>= 750 mL</small></div><div className="float-card card-streak"><Icon name="bolt" size={18}/><b>Brain power</b><small>fully charged</small></div><span className="bubble b1"/><span className="bubble b2"/><span className="bubble b3"/></div>
       <div className="feature-strip"><div><span className="feature-icon coral"><Icon name="clock"/></span><p><b>3 minute challenge</b><small>Perfect for a quick brain break</small></p></div><div><span className="feature-icon mint"><Icon name="bolt"/></span><p><b>6 playful questions</b><small>Math, logic & hydration smarts</small></p></div><div><span className="feature-icon blue"><Icon name="drop"/></span><p><b>Instant explanations</b><small>Learn something with every answer</small></p></div></div>
+      <section className="impact-story"><div className="impact-intro"><span>Why AquaMath?</span><h2>Useful math should feel useful.</h2><p>Students often practice calculations without seeing where they matter, while health lessons can feel passive and forgettable.</p></div><div className="impact-card"><b>01 · Connect</b><h3>Math meets real decisions</h3><p>Every challenge ties conversion, fractions, rates, or percentages to an everyday hydration scenario.</p></div><div className="impact-card"><b>02 · Adapt</b><h3>Challenge that responds</h3><p>Fast, accurate answers raise the level. A missed answer lowers it so practice stays demanding without becoming discouraging.</p></div><div className="impact-card"><b>03 · Remember</b><h3>Practice worth replaying</h3><p>Short sessions, immediate explanations, and delightfully strange stories make the learning loop memorable.</p></div></section>
     </section>}
 
     {screen === 'quiz' && <section className="quiz-shell">
       <div className="quiz-topline"><button className="exit-button" onClick={() => setScreen('home')}>← Exit</button><span className="keyboard-hint">A–D to answer · Enter to continue</span><div className="quiz-hud"><span className="points-pill">{points.toLocaleString()} pts</span><span className="streak"><Icon name="bolt" size={16}/>{streak} streak</span><span className={`timer-pill ${timerWarning ? 'is-low' : ''}`} role="timer" aria-live={timerWarning ? 'assertive' : 'off'}><Icon name="clock" size={15}/>{timeLeft}s</span></div></div>
-      <div className="progress-track"><span style={{ width: `${((current + (hasAnswered ? 1 : 0)) / questions.length) * 100}%` }} /></div>
+      <div className="progress-track"><span style={{ width: `${((current + (hasAnswered ? 1 : 0)) / questionCount) * 100}%` }} /></div>
       <article className="quiz-card">
-        <span className="quiz-eyebrow">{question.eyebrow}</span><h2>{question.prompt}</h2><p className="question-detail">{question.detail}</p><QuizVisual difficulty={difficulty} index={current} urgent={timerWarning}/>
+        <span className="quiz-eyebrow">{question.eyebrow}</span><h2>{question.prompt}</h2><p className="question-detail">{question.detail}</p><QuizVisual difficulty={activeDifficulty} index={current} urgent={timerWarning}/><Scratchpad key={`${activeDifficulty}-${current}`}/>
         {question.kind === 'short' ? <form className="short-answer-form" onSubmit={submitShortAnswer}>
           <label htmlFor="short-answer">Your answer</label>
           <div className="short-answer-entry"><input id="short-answer" value={shortResponse} onChange={(event) => setShortResponse(event.target.value)} placeholder="Example: 750 mL" disabled={submittedShortAnswer !== null} autoComplete="off"/><button type="submit" disabled={!shortResponse.trim() || submittedShortAnswer !== null}>Check answer</button></div>
           {submittedShortAnswer !== null && <div className={`answer-comparison ${isCorrect ? 'is-correct' : 'is-wrong'}`} role="status"><div><small>Your answer</small><strong>{submittedShortAnswer}</strong></div><span aria-hidden="true">→</span><div><small>Correct answer</small><strong>{question.sampleAnswer}</strong></div><b>{isCorrect ? 'Correct' : 'Not quite'}</b></div>}
         </form> : <div className="answer-grid">{question.answers.map((answer, index) => { const state = selected === null ? '' : index === question.correct ? 'correct' : index === selected ? 'wrong' : 'muted'; return <button key={answer} className={`answer ${state}`} onClick={() => choose(index)} disabled={selected !== null}><span className="answer-letter">{String.fromCharCode(65 + index)}</span>{answer}{selected !== null && (index === question.correct || index === selected) && <span className="answer-status"><Icon name={index === question.correct ? 'check' : 'drop'} size={16}/></span>}</button> })}</div>}
-        {hasAnswered && <div className={`feedback ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`} role="status"><span className="feedback-icon"><Icon name={isCorrect ? 'check' : 'drop'} /></span><div><b>{timedOut ? 'Time’s up—the bottle ran dry!' : isCorrect ? 'You nailed it!' : 'Good try—here’s the pour.'}</b><p>{question.explanation}</p></div><button onClick={next}>{current === questions.length - 1 ? 'See results' : 'Next question'} <Icon name="arrow" size={18}/></button></div>}
+        {hasAnswered && <div className={`feedback ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`} role="status"><span className="feedback-icon"><Icon name={isCorrect ? 'check' : 'drop'} /></span><div><b>{timedOut ? 'Time’s up—the bottle ran dry!' : isCorrect ? 'You nailed it!' : 'Good try—here’s the pour.'}</b><p>{question.explanation}</p>{current < questionCount - 1 && <span className="adaptive-next">Next level: {difficultyLabels[nextAdaptiveDifficulty]} {nextAdaptiveDifficulty !== activeDifficulty ? '↗' : '→'}</span>}</div><button onClick={next}>{current === questionCount - 1 ? 'See results' : 'Next question'} <Icon name="arrow" size={18}/></button></div>}
       </article>
     </section>}
 
-    {screen === 'results' && <section className="results"><div className="confetti c1"/><div className="confetti c2"/><div className="confetti c3"/><div className="confetti c4"/><div className="result-drop"><Icon name="drop" size={54}/><span>{score}/{questions.length}</span></div><span className="quiz-eyebrow">{difficultyLabels[difficulty]} quiz complete</span><h2>{score === questions.length ? 'Perfect pour!' : score >= 4 ? 'Making waves!' : 'A strong first splash!'}</h2><p>You solved <b>{score} of {questions.length}</b> challenges. Good job.</p><div className="score-bar"><span style={{width: `${(score/questions.length)*100}%`}} /></div><div className="result-stats"><div><strong>{Math.round((score/questions.length)*100)}%</strong><small>accuracy</small></div><div><strong>{questions.length}</strong><small>questions</small></div><div><strong>{points.toLocaleString()}</strong><small>{isNewBest ? 'new best' : `best ${bestPoints.toLocaleString()}`}</small></div></div><ResultInsights correctAnswers={correctAnswers} answerTimes={answerTimes} points={points} isNewBest={isNewBest} onShare={shareResults} shareStatus={shareStatus}/><button className="primary-button" onClick={begin}><Icon name="refresh" size={19}/> Play {difficultyLabels[difficulty].toLowerCase()} again</button><button className="text-button" onClick={() => setScreen('home')}>Change difficulty</button><p className="health-note">These are math scenarios, not personal intake targets. Hydration needs vary with age, health, activity, and conditions; follow qualified medical guidance.</p></section>}
+    {screen === 'results' && <section className="results"><div className="confetti c1"/><div className="confetti c2"/><div className="confetti c3"/><div className="confetti c4"/><div className="result-drop"><Icon name="drop" size={54}/><span>{score}/{questionCount}</span></div><span className="quiz-eyebrow">Adaptive quiz complete</span><h2>{score === questionCount ? 'Perfect pour!' : score >= 4 ? 'Making waves!' : 'A strong first splash!'}</h2><p>You solved <b>{score} of {questionCount}</b> challenges. Your math muscles and hydration know-how both got a workout.</p><div className="score-bar"><span style={{width: `${(score/questionCount)*100}%`}} /></div><div className="result-stats"><div><strong>{Math.round((score/questionCount)*100)}%</strong><small>accuracy</small></div><div><strong>{questionCount}</strong><small>questions</small></div><div><strong>{points.toLocaleString()}</strong><small>{isNewBest ? 'new best' : `best ${bestPoints.toLocaleString()}`}</small></div></div><ResultInsights correctAnswers={correctAnswers} answerTimes={answerTimes} points={points} isNewBest={isNewBest} onShare={shareResults} shareStatus={shareStatus}/><button className="primary-button" onClick={begin}><Icon name="refresh" size={19}/> Play adaptive again</button><button className="text-button" onClick={() => setScreen('home')}>Change starting difficulty</button><p className="health-note">These are math scenarios, not personal intake targets. Hydration needs vary with age, health, activity, and conditions; follow qualified medical guidance.</p></section>}
   </main>
 }
 export default App
