@@ -1,0 +1,28 @@
+.water {
+  background: linear-gradient(160deg, #69ccec 0%, #2f9fd3 58%, #2388c2 100%);
+  box-shadow: inset 18px 0 28px #ffffff26, inset -14px 0 24px #075f9a24;
+}
+
+.water::before {
+  background: #76d2ef;
+  box-shadow: inset 0 5px 8px #ffffff52;
+}
+
+.brand > span:last-child span,
+.hero-copy h1 em {
+  color: #2388c2;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #45b9e3 0%, #238fc9 58%, #197ab5 100%);
+  box-shadow: 0 11px 24px #238fc93d, inset 0 1px 0 #ffffff4d;
+}
+
+.primary-button:hover {
+  box-shadow: 0 14px 28px #197ab552, inset 0 1px 0 #ffffff5c;
+}
+
+.primary-button:active {
+  transform: translateY(0);
+  box-shadow: 0 7px 16px #197ab53d, inset 0 2px 5px #075f9a2e;
+}
