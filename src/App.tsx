@@ -9,6 +9,7 @@ import './short-answer.css'
 import './gameplay.css'
 import './impact.css'
 import './simple.css'
+import './hydration-fact.css'
 
 // A Question describes everything needed to display and grade one quiz problem.
 // Multiple-choice questions use `answers` + `correct`; typed questions use `acceptedAnswers`.
@@ -47,6 +48,35 @@ const difficultyLabels: Record<Difficulty, string> = { easy: 'Easy', medium: 'Me
 const questionCount = 6
 const difficultyOrder: Difficulty[] = ['easy', 'medium', 'hard']
 const difficultyMultiplier: Record<Difficulty, number> = { easy: 1, medium: 1.5, hard: 2 }
+
+// Keep the learning takeaway separate from the math explanation so every answer
+// is followed by one clear hydration fact, regardless of the question format.
+const hydrationFactsByDifficulty: Record<Difficulty, string[]> = {
+  easy: [
+    'Water helps the body regulate its temperature.',
+    'Regular drink breaks can make it easier to remember to hydrate during activity.',
+    'Thirst is one signal the body uses to prompt fluid intake.',
+    'Water-rich foods, including many fruits and vegetables, contribute to fluid intake.',
+    'Plain water hydrates without adding sugar or calories.',
+    'Carrying a refillable bottle can make water easier to access throughout the day.',
+  ],
+  medium: [
+    'Drinking before, during, and after exercise can help replace fluid lost through sweat.',
+    'Sweating is one way the body cools itself, and it also causes fluid loss.',
+    'Hot weather and physical activity can increase fluid needs.',
+    'A planned bottle or break schedule can help people remember to drink during long activities.',
+    'Fluids come from both drinks and water-rich foods.',
+    'Individual hydration needs vary with factors such as activity, weather, age, and health.',
+  ],
+  hard: [
+    'Longer or more intense activity usually causes more fluid loss through sweat.',
+    'Sharing a water supply still requires planning enough fluid for each person.',
+    'Checking bottle and cooler capacities can help a group avoid running out of water.',
+    'Many fruits contain a high percentage of water and contribute to overall fluid intake.',
+    'Starting an activity with enough water is easier than finding more after the supply runs low.',
+    'People often need more fluid in hot conditions, but there is no single amount for everyone.',
+  ],
+}
 
 // Later and harder questions receive less time, but never fewer than 12 seconds.
 const getTimeLimit = (difficulty: Difficulty, questionIndex: number) => Math.max(12, ({ easy: 35, medium: 30, hard: 26 }[difficulty]) - questionIndex * 3)
@@ -113,6 +143,7 @@ function App() {
   // DERIVED VALUES: calculated from state instead of being stored separately.
   const score = answers.reduce<number>((total, answer, index) => total + (playedQuestions[index] && answerIsCorrect(playedQuestions[index], answer) ? 1 : 0), 0)
   const question = questionsByDifficulty[activeDifficulty][current]
+  const hydrationFact = hydrationFactsByDifficulty[activeDifficulty][current]
   const hasAnswered = selected !== null || submittedShortAnswer !== null
   const currentAnswer = question.kind === 'short' ? submittedShortAnswer : selected
   const isCorrect = currentAnswer !== null && answerIsCorrect(question, currentAnswer)
@@ -251,7 +282,7 @@ function App() {
           <div className="short-answer-entry"><input id="short-answer" value={shortResponse} onChange={(event) => setShortResponse(event.target.value)} placeholder="Example: 750 mL" disabled={submittedShortAnswer !== null} autoComplete="off"/><button type="submit" disabled={!shortResponse.trim() || submittedShortAnswer !== null}>Check answer</button></div>
           {submittedShortAnswer !== null && <div className={`answer-comparison ${isCorrect ? 'is-correct' : 'is-wrong'}`} role="status"><div><small>Your answer</small><strong>{submittedShortAnswer}</strong></div><span aria-hidden="true">→</span><div><small>Correct answer</small><strong>{question.sampleAnswer}</strong></div><b>{isCorrect ? 'Correct' : 'Not quite'}</b></div>}
         </form> : <div className="answer-grid">{question.answers.map((answer, index) => { const state = selected === null ? '' : index === question.correct ? 'correct' : index === selected ? 'wrong' : 'muted'; return <button key={answer} className={`answer ${state}`} onClick={() => choose(index)} disabled={selected !== null}><span className="answer-letter">{String.fromCharCode(65 + index)}</span>{answer}{selected !== null && (index === question.correct || index === selected) && <span className="answer-status"><Icon name={index === question.correct ? 'check' : 'drop'} size={16}/></span>}</button> })}</div>}
-        {hasAnswered && <div className={`feedback ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`} role="status"><span className="feedback-icon"><Icon name={isCorrect ? 'check' : 'drop'} /></span><div><b>{timedOut ? 'Time is up.' : isCorrect ? 'Correct!' : 'Not quite.'}</b><p>{question.explanation}</p>{current < questionCount - 1 && <span className="adaptive-next">Next level: {difficultyLabels[nextAdaptiveDifficulty]}</span>}</div><button onClick={next}>{current === questionCount - 1 ? 'See results' : 'Next question'} <Icon name="arrow" size={18}/></button></div>}
+        {hasAnswered && <div className={`feedback ${isCorrect ? 'feedback-correct' : 'feedback-wrong'}`} role="status"><span className="feedback-icon"><Icon name={isCorrect ? 'check' : 'drop'} /></span><div className="feedback-copy"><b>{timedOut ? 'Time is up.' : isCorrect ? 'Correct!' : 'Not quite.'}</b><p>{question.explanation}</p><aside className="hydration-fact"><span className="hydration-fact-icon"><Icon name="drop" size={20}/></span><span><strong>Hydration fact</strong><span>{hydrationFact}</span></span></aside>{current < questionCount - 1 && <span className="adaptive-next">Next level: {difficultyLabels[nextAdaptiveDifficulty]}</span>}</div><button onClick={next}>{current === questionCount - 1 ? 'See results' : 'Next question'} <Icon name="arrow" size={18}/></button></div>}
       </article>
     </section>}
 
