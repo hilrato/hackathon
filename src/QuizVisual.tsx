@@ -1,22 +1,19 @@
-https://musical-spoon-v9prjw9r73wqjq.github.dev/import './quiz-visual.css'
+import './quiz-visual.css'
 
-type Difficulty = 'easy' | 'medium' | 'hard'
-type VisualGuide = { fill: number; label: string }
-
-const guides: Record<Difficulty, VisualGuide[]> = {
-  easy: [60, 45, 53, 80, 66, 75].map((fill) => ({ fill, label: `${fill}% full` })),
-  medium: [75, 63, 80, 65, 80, 13].map((fill) => ({ fill, label: `${fill}% full` })),
-  hard: [75, 63, 19, 82, 14, 80].map((fill) => ({ fill, label: `${fill}% full` })),
+type QuizVisualProps = {
+  timeLeft: number
+  timeLimit: number
+  urgent: boolean
 }
 
-// A basic water bar gives a visual clue without showing the answer.
-export function QuizVisual({ difficulty, index, urgent }: { difficulty: Difficulty; index: number; urgent: boolean }) {
-  const guide = guides[difficulty][index]
+// The water percentage follows the timer: full at the start and empty at zero.
+export function QuizVisual({ timeLeft, timeLimit, urgent }: QuizVisualProps) {
+  const waterPercent = Math.max(0, Math.min(100, (timeLeft / timeLimit) * 100))
 
-  return <aside className={`simple-water-visual ${urgent ? 'is-urgent' : ''}`} aria-label={guide.label}>
-    <span>Water level</span>
+  return <aside className={`simple-water-visual ${urgent ? 'is-urgent' : ''}`} aria-label={`Time remaining: ${timeLeft} seconds`}>
+    <span>Water timer: {timeLeft}s</span>
     <div className="water-bar">
-      <div style={{ width: `${guide.fill}%` }} />
+      <div style={{ width: `${waterPercent}%` }} />
     </div>
   </aside>
 }

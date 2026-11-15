@@ -188,6 +188,7 @@
 .water-bar div {
   height: 100%;
   background: #51bce0;
+  transition: width 1s linear;
 }
 
 .simple-water-visual.is-urgent {
