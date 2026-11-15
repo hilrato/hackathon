@@ -34,14 +34,13 @@
 }
 
 .difficulty-picker button:hover {
-  color: #159d91;
-  background: #eff9f7;
+  color: #157b9d;
+  background: #eff7f9;
 }
 
 .difficulty-picker button.active {
   color: #fff;
-  background: #18aa9d;
-  box-shadow: 0 5px 12px #18aa9d35;
+  background: #1883aa;
 }
 
 .difficulty-picker button:focus-visible {
