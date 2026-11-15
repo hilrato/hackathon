@@ -1,0 +1,235 @@
+/* Simple final theme. These rules intentionally avoid glossy, generated-looking effects. */
+:root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #17324d;
+  background: #eaf7fb;
+}
+
+.app {
+  min-height: 100vh;
+  background: #eaf7fb;
+}
+
+.nav {
+  max-width: 1000px;
+  margin: auto;
+  padding: 18px 20px;
+  border-bottom: 2px solid #9dd7e8;
+}
+
+.brand,
+.exit-button,
+.text-button {
+  color: #176b8f;
+}
+
+.nav-pill,
+.ambient,
+.confetti,
+.keyboard-hint {
+  display: none;
+}
+
+.home {
+  max-width: 900px;
+  margin: 45px auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 1.4fr .6fr;
+  gap: 40px;
+  align-items: center;
+}
+
+.hero-copy h1 {
+  margin: 10px 0 18px;
+  font-size: clamp(2.4rem, 6vw, 4.4rem);
+  line-height: 1.05;
+}
+
+.hero-copy h1 em {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: .48em;
+  line-height: 1.25;
+  word-spacing: .18em;
+  color: #178db7;
+  font-style: normal;
+}
+
+.kicker {
+  display: inline-block;
+  padding: 5px 9px;
+  color: #176b8f;
+  background: #d3eef7;
+  border: 1px solid #9dd7e8;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.hero-text {
+  max-width: 600px;
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.primary-button,
+.feedback button,
+.short-answer-entry button,
+.share-row button {
+  border: 0;
+  border-radius: 6px;
+  background: #1685ad;
+  color: white;
+  box-shadow: none;
+}
+
+.primary-button:hover,
+.feedback button:hover,
+.short-answer-entry button:hover,
+.share-row button:hover {
+  background: #116c8e;
+  transform: none;
+  box-shadow: none;
+}
+
+.simple-bottle {
+  height: 290px;
+  max-width: 145px;
+  margin: auto;
+  position: relative;
+  overflow: hidden;
+  border: 5px solid #5c8294;
+  border-radius: 22px 22px 30px 30px;
+  background: white;
+}
+
+.simple-bottle-cap {
+  width: 60px;
+  height: 20px;
+  margin: -5px auto 0;
+  background: #405e6c;
+}
+
+.simple-bottle-water {
+  position: absolute;
+  inset: 33% 0 0;
+  padding-top: 60px;
+  text-align: center;
+  color: #064e6b;
+  background: #62c5e5;
+  font-weight: bold;
+}
+
+.impact-story {
+  grid-column: 1 / -1;
+  margin-top: 25px;
+  padding: 25px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  color: #17324d;
+  background: white;
+  border: 2px solid #b7dfe9;
+  border-radius: 8px;
+}
+
+.impact-intro,
+.impact-card {
+  padding: 10px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+}
+
+.quiz-shell,
+.results {
+  max-width: 900px;
+}
+
+.quiz-card,
+.result-insights {
+  border: 2px solid #b7dfe9;
+  border-radius: 8px;
+  box-shadow: 0 3px 8px rgba(18, 80, 100, .1);
+}
+
+.answer {
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.answer:hover:not(:disabled) {
+  transform: none;
+}
+
+.simple-water-visual {
+  margin: 20px 0;
+  padding: 12px;
+  border: 1px solid #9dd7e8;
+  border-radius: 6px;
+  background: #f5fcfe;
+}
+
+.simple-water-visual span {
+  display: block;
+  margin-bottom: 7px;
+  font-size: .85rem;
+  font-weight: bold;
+}
+
+.water-bar {
+  height: 24px;
+  overflow: hidden;
+  border: 2px solid #568495;
+  border-radius: 3px;
+  background: white;
+}
+
+.water-bar div {
+  height: 100%;
+  background: #51bce0;
+}
+
+.simple-water-visual.is-urgent {
+  border-color: #cf5353;
+}
+
+.scratchpad-panel {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid #aacfd9;
+  border-radius: 6px;
+  background: #f8fdff;
+}
+
+.scratchpad-panel textarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 10px;
+  resize: vertical;
+  border: 1px solid #8eb7c3;
+  border-radius: 4px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.scratchpad-panel button {
+  width: fit-content;
+  padding: 6px 10px;
+}
+
+@media (max-width: 700px) {
+  .home {
+    grid-template-columns: 1fr;
+    margin-top: 25px;
+  }
+
+  .simple-bottle {
+    height: 220px;
+  }
+
+  .impact-story {
+    grid-template-columns: 1fr;
+  }
+}
