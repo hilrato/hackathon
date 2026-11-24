@@ -44,6 +44,7 @@ const questionsByDifficulty: Record<Difficulty, Question[]> = {
   ],
 }
 
+// initializes difficulty, establishes amount of questions for each difficulty, the multiplier for points, and the order of each difficulty.
 const difficultyLabels: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }
 const questionCount = 6
 const difficultyOrder: Difficulty[] = ['easy', 'medium', 'hard']
